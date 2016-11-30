@@ -93,6 +93,7 @@ disp(['Number of objects in dataset: ' num2str(size(dataset.fea, 1))]);
 %% Nearest neighbor
 file = load('table/complete-dataset');
 dataset = file.dataset;
+nscales = 25;
 
 % Separate out the lab and field images
 i = strcmp('lab', dataset.gnd(:,2));
@@ -162,12 +163,16 @@ for i = 1:numel(species)
     errorRates(species{i}) = nmissed / count * 100;
 end
 
+figure();
 k = errorRates.keys;
 v = errorRates.values;
 v = [v{:}];
+[v,i] = sort(v, 'descend');
+k = k(i);
 cutoff = 20;
 bar(1:numel(v(v>cutoff)), v(v>cutoff));
 title('Species with Highest Error Rate');
 set(gca, 'XTickLabel', k(v>cutoff), 'XTick', 1:numel(k(v>cutoff)));
+set(gca, 'XTickLabelRotation', 60);
 xlabel('Species');
 ylabel('Error rate (percentage)');
