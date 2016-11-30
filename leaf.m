@@ -94,16 +94,28 @@ disp(['Number of objects in dataset: ' num2str(size(dataset.fea, 1))]);
 file = load('table/complete-dataset');
 dataset = file.dataset;
 
-% Kumar et. al. found the histogram intersection distance to perform better than L1, L2, Bhattacharyya distance, and X2
-histogramIntersectionDistance = @(a,b)nscales - sum(min(a, b), 2);
+% Separate out the lab and field images
+i = strcmp('lab', dataset.gnd(:,2));
+labOnly.gnd = dataset.gnd(i,:);
+labOnly.fea = dataset.fea(i,:);
+fieldOnly.gnd = dataset.gnd(~i,:);
+fieldOnly.fea = dataset.fea(~i,:);
 
-mdl = fitcknn(dataset.fea, dataset.gnd(:,1), 'Distance', histogramIntersectionDistance);
+for i = 1:2%
+    
+    % Kumar et. al. found the histogram intersection distance to perform better than L1, L2, Bhattacharyya distance, and X2
+    histogramIntersectionDistance = @(a,b)nscales - sum(min(a, b), 2);
 
-% Separate out the field images
-i = strcmp('field', dataset.gnd(:,2));
-fieldOnly.gnd = dataset.gnd(i,:);
-fieldOnly.fea = dataset.fea(i,:);
-
-cvmdl = crossval(mdl, 'Leaveout', 'on');
-
-cvmdlloss = kfoldLoss(cvmdl);
+    knn = fitcknn([labOnly.fea; fieldOnly.fea([1:i-1,i+1:end],:)], ...
+        [labOnly.gnd(:,1); fieldOnly.gnd([1:i-1,i+1:end],1)], ...
+        'Distance', histogramIntersectionDistance, ...
+        'NumNeighbors', 1);
+    
+    fprintf(['Predicting field image ' num2str(fieldOnly.gnd{i,3}) '...']);
+    y = predict(knn, fieldOnly.fea(i,:));
+    if strcmp(y{1}, fieldOnly.gnd{i,1})
+        fprintf('Correct\n');
+    else
+        fprintf('WRONG\n');
+    end
+end
