@@ -101,21 +101,73 @@ labOnly.fea = dataset.fea(i,:);
 fieldOnly.gnd = dataset.gnd(~i,:);
 fieldOnly.fea = dataset.fea(~i,:);
 
-for i = 1:2%
+nfieldImages = numel(fieldOnly.gnd(:,1));
+nspecies = 20;
+missedSpecies = containers.Map();
+accuracy = zeros(1, nspecies);
+for i = 1:nfieldImages
+    gnd = [labOnly.gnd(:,1); fieldOnly.gnd([1:i-1,i+1:end],1)];
+    fea = [labOnly.fea; fieldOnly.fea([1:i-1,i+1:end],:)];
     
     % Kumar et. al. found the histogram intersection distance to perform better than L1, L2, Bhattacharyya distance, and X2
     histogramIntersectionDistance = @(a,b)nscales - sum(min(a, b), 2);
-
-    knn = fitcknn([labOnly.fea; fieldOnly.fea([1:i-1,i+1:end],:)], ...
-        [labOnly.gnd(:,1); fieldOnly.gnd([1:i-1,i+1:end],1)], ...
-        'Distance', histogramIntersectionDistance, ...
-        'NumNeighbors', 1);
     
-    fprintf(['Predicting field image ' num2str(fieldOnly.gnd{i,3}) '...']);
-    y = predict(knn, fieldOnly.fea(i,:));
-    if strcmp(y{1}, fieldOnly.gnd{i,1})
-        fprintf('Correct\n');
-    else
-        fprintf('WRONG\n');
+    fprintf(['Running knnsearch on field image ' num2str(i) ' (id = ' num2str(fieldOnly.gnd{i,3}) ')...']);
+    idx = knnsearch(fea, fieldOnly.fea(i,:), 'Distance', histogramIntersectionDistance, 'K', numel(gnd));
+    
+    speciesRank = {};
+    for k = 1:numel(idx)
+        species = gnd{idx(k),1};
+        if any(strcmp(species, speciesRank))
+            continue;
+        end
+        speciesRank{end + 1} = species; %#ok<SAGROW>
+        
+        if strcmp(species, fieldOnly.gnd{i,1})
+            n = numel(speciesRank);
+            fprintf(['Matched after ' num2str(n) ' nearest species checked\n']);
+            accuracy(n:end) = accuracy(n:end) + 1;
+            break;
+        end
+        
+        if numel(speciesRank) >= nspecies
+            s = fieldOnly.gnd{i,1};
+            fprintf(['NO MATCH: species = ' s ' \n']);
+            if missedSpecies.isKey(s)
+                missedSpecies(s) = missedSpecies(s) + 1;
+            else
+                missedSpecies(s) = 1;
+            end
+            break;
+        end
     end
 end
+
+%% Plot nearest neighbor results
+percentage = accuracy / nfieldImages * 100;
+plot(percentage);
+hold on
+ideal = [72 82 87 91 93 94.5 95.5 96 96.6 96.9 97.4 97.8 98.2 98.4 98.6 98.7 98.8 98.9 99 99.1];
+plot(ideal);
+title('Accuracy vs. Number of Nearest Species Considered');
+xlabel('Number of nearest species considered');
+ylabel('Accuracy (percentage)');
+legend('Cafaro', 'Kumar et. al');
+
+errorRates = containers.Map();
+species = missedSpecies.keys;
+for i = 1:numel(species)
+    count = sum(strcmp(species{i}, dataset.gnd(:,1)));
+    nmissed = missedSpecies(species{i});
+    errorRates(species{i}) = nmissed / count * 100;
+end
+
+k = errorRates.keys;
+v = errorRates.values;
+v = [v{:}];
+cutoff = 20;
+bar(1:numel(v(v>cutoff)), v(v>cutoff));
+title('Species with Highest Error Rate');
+set(gca, 'XTickLabel', k(v>cutoff), 'XTick', 1:numel(k(v>cutoff)));
+xlabel('Species');
+ylabel('Error rate (percentage)');
