@@ -147,13 +147,13 @@ end
 %% Plot nearest neighbor results
 percentage = accuracy / nfieldImages * 100;
 plot(percentage);
-hold on
-ideal = [72 82 87 91 93 94.5 95.5 96 96.6 96.9 97.4 97.8 98.2 98.4 98.6 98.7 98.8 98.9 99 99.1];
-plot(ideal);
+% hold on
+% ideal = [72 82 87 91 93 94.5 95.5 96 96.6 96.9 97.4 97.8 98.2 98.4 98.6 98.7 98.8 98.9 99 99.1];
+% plot(ideal);
 title('Accuracy vs. Number of Nearest Species Considered');
 xlabel('Number of nearest species considered');
 ylabel('Accuracy (percentage)');
-legend('Cafaro', 'Kumar et. al');
+% legend('Cafaro', 'Kumar et. al');
 
 errorRates = containers.Map();
 species = missedSpecies.keys;

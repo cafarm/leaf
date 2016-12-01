@@ -12,7 +12,7 @@ function hocs = calculateHocs(img, nscales, nbins, startScale, endScale, plotInt
         startScale = 2;
     end
     if nargin < 5
-        endScale = 26;
+        endScale = 60;
     end
     if nargin < 6
         plotInterval = [];
@@ -46,6 +46,9 @@ function hocs = calculateHocs(img, nscales, nbins, startScale, endScale, plotInt
 
     % Resize cropped image to common segmented area
     resized = imresize(cropped, sqrt(50000/stats.FilledArea));
+    if sum(resized(:))/numel(resized(:)) > .85
+        error('Probably a ruler');
+    end
 
     % Pad to max radius
     radii = round(linspace(startScale, endScale, nscales));
@@ -103,18 +106,18 @@ function hocs = calculateHocs(img, nscales, nbins, startScale, endScale, plotInt
             text(5, size(resized, 1) - 10, ['radius = ' num2str(radius)], 'Color', 'white');
             %saveas(f, ['derived/image-' num2str(round(radius)) '.png']);
 
-%             % Show curvature plot
-%             figure();
-%             x = 1:npos;
-%             y = curvatures;
-%             xx = [x;x];
-%             yy = [y;y];
-%             zz = zeros(size(xx));
-%             surf(xx, yy, zz, yy, 'EdgeColor', 'interp', 'LineWidth', 5);
-%             colormap('jet');
-%             view(2);
-%             title(['Plot of curvature measures, radius = ' num2str(radius)]);
-%             %saveas(f, ['derived/plot-' num2str(round(radius)) '.png']);
+            % Show curvature plot
+            figure();
+            x = 1:npos;
+            y = curvatures;
+            xx = [x;x];
+            yy = [y;y];
+            zz = zeros(size(xx));
+            surf(xx, yy, zz, yy, 'EdgeColor', 'interp', 'LineWidth', 5);
+            colormap('jet');
+            view(2);
+            title(['Plot of curvature measures, radius = ' num2str(radius)]);
+            %saveas(f, ['derived/plot-' num2str(round(radius)) '.png']);
 
             % Show histogram
             figure();
