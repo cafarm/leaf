@@ -1,4 +1,4 @@
-function hocs = calculateHocs(img, nscales, nbins, plotInterval)
+function hocs = calculateHocs(img, nscales, nbins, startScale, endScale, plotInterval)
     % Calculates the Histograms of Curvature over Scale feature for the given image as described by Kumar et. al. in 
     % Leafsnap: A Computer Vision System for Automatic Plant Species Identification.
     
@@ -9,6 +9,12 @@ function hocs = calculateHocs(img, nscales, nbins, plotInterval)
         nbins = 21;
     end
     if nargin < 4
+        startScale = 2;
+    end
+    if nargin < 5
+        endScale = 26;
+    end
+    if nargin < 6
         plotInterval = [];
     end
     
@@ -42,7 +48,7 @@ function hocs = calculateHocs(img, nscales, nbins, plotInterval)
     resized = imresize(cropped, sqrt(50000/stats.FilledArea));
 
     % Pad to max radius
-    radii = round(linspace(3, 70, nscales));
+    radii = round(linspace(startScale, endScale, nscales));
     resized = padarray(resized, [radii(end) radii(end)]);
     
     % Recalculate boundary from resized image
@@ -97,18 +103,18 @@ function hocs = calculateHocs(img, nscales, nbins, plotInterval)
             text(5, size(resized, 1) - 10, ['radius = ' num2str(radius)], 'Color', 'white');
             %saveas(f, ['derived/image-' num2str(round(radius)) '.png']);
 
-            % Show curvature plot
-            figure();
-            x = 1:npos;
-            y = curvatures;
-            xx = [x;x];
-            yy = [y;y];
-            zz = zeros(size(xx));
-            surf(xx, yy, zz, yy, 'EdgeColor', 'interp', 'LineWidth', 5);
-            colormap('jet');
-            view(2);
-            title(['Plot of curvature measures, radius = ' num2str(radius)]);
-            %saveas(f, ['derived/plot-' num2str(round(radius)) '.png']);
+%             % Show curvature plot
+%             figure();
+%             x = 1:npos;
+%             y = curvatures;
+%             xx = [x;x];
+%             yy = [y;y];
+%             zz = zeros(size(xx));
+%             surf(xx, yy, zz, yy, 'EdgeColor', 'interp', 'LineWidth', 5);
+%             colormap('jet');
+%             view(2);
+%             title(['Plot of curvature measures, radius = ' num2str(radius)]);
+%             %saveas(f, ['derived/plot-' num2str(round(radius)) '.png']);
 
             % Show histogram
             figure();

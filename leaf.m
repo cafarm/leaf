@@ -111,10 +111,10 @@ for i = 1:nfieldImages
     fea = [labOnly.fea; fieldOnly.fea([1:i-1,i+1:end],:)];
     
     % Kumar et. al. found the histogram intersection distance to perform better than L1, L2, Bhattacharyya distance, and X2
-    histogramIntersectionDistance = @(a,b)nscales - sum(min(a, b), 2);
+    histIntersect = @(a,b)nscales - sum(min(a, b), 2);
     
     fprintf(['Running knnsearch on field image ' num2str(i) ' (id = ' num2str(fieldOnly.gnd{i,3}) ')...']);
-    idx = knnsearch(fea, fieldOnly.fea(i,:), 'Distance', histogramIntersectionDistance, 'K', numel(gnd));
+    idx = knnsearch(fea, fieldOnly.fea(i,:), 'Distance', histIntersect, 'K', numel(gnd));
     
     speciesRank = {};
     for k = 1:numel(idx)
@@ -176,3 +176,63 @@ set(gca, 'XTickLabel', k(v>cutoff), 'XTick', 1:numel(k(v>cutoff)));
 set(gca, 'XTickLabelRotation', 60);
 xlabel('Species');
 ylabel('Error rate (percentage)');
+
+%% Experiment with different starting scale to get most discrimination in fine scale with smooth vs serrated leaves
+smooth1 = imread('dataset\segmented\field\diospyros_virginiana\12991999838005.png');
+smooth2 = imread('dataset\segmented\field\diospyros_virginiana\12991999800320.png');
+serrated = imread('dataset\segmented\field\amelanchier_arborea\13291782501779.png');
+
+nscales = 25;
+nbins = 21;
+distanceSmooth = [];
+distanceSerrated = [];
+for i = 1:10
+    hocs1 = calculateHocs(smooth1, nscales, nbins, i);
+    hocs2 = calculateHocs(smooth2, nscales, nbins, i);
+    hocs3 = calculateHocs(serrated, nscales, nbins, i);
+    
+    histIntersect = @(a,b)1 - sum(min(a, b), 2);
+    
+    distanceSmooth(end + 1) = histIntersect(hocs1(1:nbins), hocs2(1:nbins)); %#ok<SAGROW>
+    distanceSerrated(end + 1) = histIntersect(hocs1(1:nbins), hocs3(1:nbins)); %#ok<SAGROW>
+end
+
+figure();
+plot(distanceSmooth);
+hold on;
+plot(distanceSerrated);
+title('Histogram Intersection Distance vs Starting Scale Radius');
+xlabel('Starting scale radius');
+ylabel('Intersection distance');
+legend('Smooth vs. Smooth', 'Smooth vs. Serrated');
+
+%% Experiment with different ending scale to get the most discrimination in coarse scale with non-lobed vs lobed leaves
+nonlobed1 = imread('dataset\segmented\field\diospyros_virginiana\12991999838005.png');
+nonlobed2 = imread('dataset\segmented\field\diospyros_virginiana\12991999800320.png');
+lobed = imread('dataset\segmented\lab\quercus_shumardii\ny1156-01-3.png');
+
+nscales = 25;
+nbins = 21;
+startRadius = 5;
+endRadius = 40;
+distanceNonlobed = [];
+distanceLobed = [];
+for i = startRadius:endRadius
+    hocs1 = calculateHocs(nonlobed1, nscales, nbins, startRadius, i);
+    hocs2 = calculateHocs(nonlobed2, nscales, nbins, startRadius, i);
+    hocs3 = calculateHocs(lobed, nscales, nbins, startRadius, i);
+    
+    histIntersect = @(a,b)1 - sum(min(a, b), 2);
+    
+    distanceNonlobed(end + 1) = histIntersect(hocs1(end-nbins+1:end), hocs2(end-nbins+1:end)); %#ok<SAGROW>
+    distanceLobed(end + 1) = histIntersect(hocs1(end-nbins+1:end), hocs3(end-nbins+1:end)); %#ok<SAGROW>
+end
+
+figure();
+plot(startRadius:endRadius, distanceNonlobed);
+hold on;
+plot(startRadius:endRadius, distanceLobed);
+title('Histogram Intersection Distance vs Ending Scale Radius');
+xlabel('Ending scale radius');
+ylabel('Intersection distance');
+legend('Non-lobed vs. Non-lobed', 'Non-lobed vs. Lobed');
