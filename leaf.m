@@ -266,3 +266,152 @@ title('Histogram Intersection Distance vs Ending Scale Radius');
 xlabel('Ending scale radius');
 ylabel('Intersection distance');
 legend('Non-lobed vs. Non-lobed', 'Non-lobed vs. Lobed');
+
+%% Extract features using convolutional neural networks
+
+% This section uses a pre-trained convolution neural network to calculate feature vectors for each of the leaf images.
+
+if ~exist('table', 'dir')
+    mkdir('table');
+end
+
+labIdms = imageDatastore('dataset/images/lab', 'LabelSource', 'foldernames', 'IncludeSubfolders', true);
+fieldIdms = imageDatastore('dataset/images/field', 'LabelSource', 'foldernames', 'IncludeSubfolders', true);
+
+% Download and load pre-trained CNN network
+cnnURL = 'http://www.vlfeat.org/matconvnet/models/beta16/imagenet-caffe-alex.mat';
+cnnMatFile = fullfile(tempdir, 'imagenet-caffe-alex.mat');
+if ~exist(cnnMatFile, 'file')    
+    disp('Downloading pre-trained CNN model...');
+    websave(cnnMatFile, cnnURL);
+end
+convnet = helperImportMatConvNet(cnnMatFile);
+
+% Pre-processing for CNN
+labIdms.ReadFcn = @(filename)readAndPreprocessImage(filename);
+fieldIdms.ReadFcn = @(filename)readAndPreprocessImage(filename);
+
+featureLayer = 'fc7';
+labFeatures = activations(convnet, labIdms, featureLayer, 'MiniBatchSize', 32, 'OutputAs', 'columns');
+fieldFeatures = activations(convnet, fieldIdms, featureLayer, 'MiniBatchSize', 32, 'OutputAs', 'columns');
+
+%% Save extracted features to file
+
+% This section saves the features vectors extracted from the section above to file.
+
+l = cell(numel(labIdms.Labels), 1);
+l(:) = {'lab'};
+labGnd = [labIdms.Labels l];
+
+l = cell(numel(fieldIdms.Labels), 1);
+l(:) = {'field'};
+fieldGnd = [fieldIdms.Labels l];
+
+cnnDataset.gnd = [labGnd; fieldGnd];
+cnnDataset.fea = [labFeatures fieldFeatures];
+save('table/complete-cnn-dataset', 'cnnDataset');
+
+disp(['Number of objects in cnn dataset: ' num2str(size(cnnDataset.gnd, 1))]);
+
+%% Multiclass SVM
+
+% This section uses a multiclass SVM classifier with the feature vectors extracted from the CNN above. Again the model
+% is trained and tested multiple times. However, because SVM takes a while to train, more field images are left out at a
+% time to reduce the overall runtime. This should only hurt, not help, accuracy. With more time, leave-one-out
+% validation would be performed as it is in the nearest neighbor above.
+
+file = load('table/complete-cnn-dataset');
+cnnDataset = file.cnnDataset;
+
+% Separate out the lab and field images
+i = strcmp('lab', cellstr(cnnDataset.gnd(:,2)));
+labOnly.gnd = cnnDataset.gnd(i,:);
+labOnly.fea = cnnDataset.fea(:,i);
+fieldOnly.gnd = cnnDataset.gnd(~i,:);
+fieldOnly.fea = cnnDataset.fea(:,~i);
+
+% Randomize field image order
+[~, idx] = sort(rand(size(fieldOnly.gnd(:,1))));
+fieldOnly.gnd = fieldOnly.gnd(idx,:);
+fieldOnly.fea = fieldOnly.fea(:,idx);
+
+nfieldImages = numel(fieldOnly.gnd(:,1));
+nspecies = 20;
+nper = 1000;
+missedSpecies = containers.Map();
+accuracy = zeros(1, nspecies);
+for i = 1:nper:nfieldImages
+    disp(['Leaving out field images ' num2str(i) ' to ' num2str(i+nper) '.']);
+    
+    gnd = [labOnly.gnd(:,1); fieldOnly.gnd([1:i-1,i+nper:end],1)];
+    fea = [labOnly.fea fieldOnly.fea(:,[1:i-1,i+nper:end])];
+    
+    svm = fitcecoc(fea, gnd(:,1), 'Learners', 'Linear', 'Coding', 'onevsall', 'ObservationsIn', 'columns');
+    
+    for k = 1:nper
+        if k+i>nfieldImages
+            break;
+        end
+        
+        [label, score] = predict(svm, fieldOnly.fea(:,k+i)');
+
+        [~, idx] = sort(score, 'descend');
+
+        speciesRank = svm.ClassNames(idx);
+
+        rank = find(strcmp(cellstr(fieldOnly.gnd(k+i,1)), cellstr(speciesRank)), 1);
+        if rank <= 20
+            fprintf(['Matched after ' num2str(rank) ' top species considered\n']);
+            accuracy(rank:end) = accuracy(rank:end) + 1;
+        else
+            s = char(label);
+            fprintf(['NO MATCH: species = ' s ' \n']);
+            if missedSpecies.isKey(s)
+                missedSpecies(s) = missedSpecies(s) + 1;
+            else
+                missedSpecies(s) = 1;
+            end
+        end
+    end
+end
+
+%% Plot SVM results
+
+% This section plots the results of the nearest neighbor cross validation performed above. The accuracy is plotted
+% against the number of top predictions considered, as it is with the nearest neighbor plot above.
+
+percentage = accuracy / nfieldImages * 100;
+plot(percentage);
+
+% The "ideal" is the results produced by Kumar et al. These were guesstimated by visually examining the chart in their
+% paper. I am not aware of any actual published numbers.
+hold on
+ideal = [72 82 87 91 93 94.5 95.5 96 96.6 96.9 97.4 97.8 98.2 98.4 98.6 98.7 98.8 98.9 99 99.1];
+plot(ideal);
+
+title('Accuracy vs. Number of Nearest Species Considered');
+xlabel('Number of nearest species considered');
+ylabel('Accuracy (percentage)');
+legend('Cafaro', 'Kumar et. al');
+
+errorRates = containers.Map();
+species = missedSpecies.keys;
+for i = 1:numel(species)
+    count = sum(strcmp(species{i}, cellstr(cnnDataset.gnd(:,1))));
+    nmissed = missedSpecies(species{i});
+    errorRates(species{i}) = nmissed / count * 100;
+end
+
+figure();
+k = cellstr(errorRates.keys);
+v = errorRates.values;
+v = [v{:}];
+[v,i] = sort(v, 'descend');
+k = k(i);
+cutoff = 1;
+bar(1:numel(v(v>cutoff)), v(v>cutoff));
+title('Species with Highest Error Rate');
+set(gca, 'XTickLabel', k(v>cutoff), 'XTick', 1:numel(k(v>cutoff)));
+set(gca, 'XTickLabelRotation', 60);
+xlabel('Species');
+ylabel('Error rate (percentage)');
