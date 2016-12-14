@@ -91,6 +91,13 @@ save('table/complete-dataset', 'dataset');
 disp(['Number of objects in dataset: ' num2str(size(dataset.fea, 1))]);
 
 %% Nearest neighbor
+
+% This section uses the feature table created and extracted above to train a nearest neighbor model. The model is 
+% actually trained and tested many times inorder to perform leave-one-out cross validation. The leave-one-out cross 
+% validation approach entails looping through the set of field images only, removing 1 field image from the feature
+% table, training the model with all lab and the remaining field images, querying the model with the removed field image
+% and collecting the top 20 predictions for species classification.
+
 file = load('table/complete-dataset');
 dataset = file.dataset;
 nscales = 25;
@@ -110,7 +117,8 @@ for i = 1:nfieldImages
     gnd = [labOnly.gnd(:,1); fieldOnly.gnd([1:i-1,i+1:end],1)];
     fea = [labOnly.fea; fieldOnly.fea([1:i-1,i+1:end],:)];
     
-    % Kumar et. al. found the histogram intersection distance to perform better than L1, L2, Bhattacharyya distance, and X2
+    % Kumar et. al. found the histogram intersection distance to perform better than L1, L2, Bhattacharyya distance, 
+    % and X2
     histIntersect = @(a,b)nscales - sum(min(a, b), 2);
     
     fprintf(['Running knnsearch on field image ' num2str(i) ' (id = ' num2str(fieldOnly.gnd{i,3}) ')...']);
@@ -145,15 +153,25 @@ for i = 1:nfieldImages
 end
 
 %% Plot nearest neighbor results
+
+% This section plots the results of the nearest neighbor cross validation performed above. The accuracy is plotted
+% against the number of top predictions considered. For instance, the model may be 70% accurate when you only consider
+% if the true species actually matches the top prediction, but 90% accurate when you consider if the true species
+% matches any of the top 5 predictions.
+
 percentage = accuracy / nfieldImages * 100;
 plot(percentage);
-% hold on
-% ideal = [72 82 87 91 93 94.5 95.5 96 96.6 96.9 97.4 97.8 98.2 98.4 98.6 98.7 98.8 98.9 99 99.1];
-% plot(ideal);
+
+% The "ideal" is the results produced by Kumar et al. These were guesstimated by visually examining the chart in their
+% paper. I am not aware of any actual published numbers.
+hold on
+ideal = [72 82 87 91 93 94.5 95.5 96 96.6 96.9 97.4 97.8 98.2 98.4 98.6 98.7 98.8 98.9 99 99.1];
+plot(ideal);
+
 title('Accuracy vs. Number of Nearest Species Considered');
 xlabel('Number of nearest species considered');
 ylabel('Accuracy (percentage)');
-% legend('Cafaro', 'Kumar et. al');
+legend('Cafaro', 'Kumar et. al');
 
 errorRates = containers.Map();
 species = missedSpecies.keys;
@@ -178,6 +196,14 @@ xlabel('Species');
 ylabel('Error rate (percentage)');
 
 %% Experiment with different starting scale to get most discrimination in fine scale with smooth vs serrated leaves
+
+% This section attempts to find the ideal starting scale for feature extraction by examining a set of leaves that appear
+% similar overall but where one is smooth and the other is serrated. The idea is to calculate the feature vector for
+% these leaves by using different starting scales and then compare them against each other with the histogram
+% intersection distance (the distance method used in the nearest neighbor model above). The starting scale that produces
+% the greatest distance should be the starting scale that produces the greatest discrimination between these leaves in
+% the model.
+
 smooth1 = imread('dataset\segmented\field\diospyros_virginiana\12991999838005.png');
 smooth2 = imread('dataset\segmented\field\diospyros_virginiana\12991999800320.png');
 serrated = imread('dataset\segmented\field\amelanchier_arborea\13291782501779.png');
@@ -207,6 +233,10 @@ ylabel('Intersection distance');
 legend('Smooth vs. Smooth', 'Smooth vs. Serrated');
 
 %% Experiment with different ending scale to get the most discrimination in coarse scale with non-lobed vs lobed leaves
+
+% This section is similar to the one above but attempts to find the ideal ending scale by comparing non-lobed and lobed
+% leaves.
+
 nonlobed1 = imread('dataset\segmented\field\diospyros_virginiana\12991999838005.png');
 nonlobed2 = imread('dataset\segmented\field\diospyros_virginiana\12991999800320.png');
 lobed = imread('dataset\segmented\lab\quercus_shumardii\ny1156-01-3.png');
