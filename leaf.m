@@ -337,7 +337,7 @@ fieldOnly.fea = fieldOnly.fea(:,idx);
 
 nfieldImages = numel(fieldOnly.gnd(:,1));
 nspecies = 20;
-nper = 500;
+nper = 100;
 missedSpecies = containers.Map();
 accuracy = zeros(1, nspecies);
 for i = 1:nper:nfieldImages
