@@ -160,18 +160,18 @@ end
 % matches any of the top 5 predictions.
 
 percentage = accuracy / nfieldImages * 100;
-plot(percentage);
+plot(percentage, '-o');
 
 % The "ideal" is the results produced by Kumar et al. These were guesstimated by visually examining the chart in their
 % paper. I am not aware of any actual published numbers.
 hold on
-ideal = [72 82 87 91 93 94.5 95.5 96 96.6 96.9 97.4 97.8 98.2 98.4 98.6 98.7 98.8 98.9 99 99.1];
-plot(ideal);
+ideal = [72 82 87 91 93 94.5 95.5 96 96.6 96.9 97.3 97.5 97.8 98.0 98.1 98.3 98.5 98.7 98.8 98.9];
+plot(ideal, '--x');
 
 title('Accuracy vs. Number of Top-Scoring Species Considered');
 xlabel('Number of top-scoring species considered');
 ylabel('Accuracy (percentage)');
-legend('Nearest Neighbor (Cafaro)', 'Nearest Neighbor (Kumar et. al)');
+legend('HoCS with NN (Cafaro)', 'HoCS with NN (Kumar et. al)');
 
 errorRates = containers.Map();
 species = missedSpecies.keys;
@@ -381,18 +381,18 @@ end
 % against the number of top predictions considered, as it is with the nearest neighbor plot above.
 
 percentage = accuracy / nfieldImages * 100;
-plot(percentage);
+plot(percentage, '-o');
 
 % The "ideal" is the results produced by Kumar et al. These were guesstimated by visually examining the chart in their
 % paper. I am not aware of any actual published numbers.
 hold on
-ideal = [72 82 87 91 93 94.5 95.5 96 96.6 96.9 97.4 97.8 98.2 98.4 98.6 98.7 98.8 98.9 99 99.1];
-plot(ideal);
+ideal = [72 82 87 91 93 94.5 95.5 96 96.6 96.9 97.3 97.5 97.8 98.0 98.1 98.3 98.5 98.7 98.8 98.9];
+plot(ideal, '--x');
 
 title('Accuracy vs. Number of Top-Scoring Species Considered');
 xlabel('Number of top-scoring species considered');
 ylabel('Accuracy (percentage)');
-legend('Multiclass SVM (Cafaro)', 'Nearest Neighbor (Kumar et. al)');
+legend('CNN with SVM (Cafaro)', 'HoCS with NN (Kumar et. al)');
 
 errorRates = containers.Map();
 species = missedSpecies.keys;
