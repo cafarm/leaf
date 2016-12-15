@@ -168,10 +168,10 @@ hold on
 ideal = [72 82 87 91 93 94.5 95.5 96 96.6 96.9 97.4 97.8 98.2 98.4 98.6 98.7 98.8 98.9 99 99.1];
 plot(ideal);
 
-title('Accuracy vs. Number of Nearest Species Considered');
-xlabel('Number of nearest species considered');
+title('Accuracy vs. Number of Top-Scoring Species Considered');
+xlabel('Number of top-scoring species considered');
 ylabel('Accuracy (percentage)');
-legend('Cafaro', 'Kumar et. al');
+legend('Nearest Neighbor (Cafaro)', 'Nearest Neighbor (Kumar et. al)');
 
 errorRates = containers.Map();
 species = missedSpecies.keys;
@@ -187,7 +187,7 @@ v = errorRates.values;
 v = [v{:}];
 [v,i] = sort(v, 'descend');
 k = k(i);
-cutoff = 20;
+cutoff = 25;
 bar(1:numel(v(v>cutoff)), v(v>cutoff));
 title('Species with Highest Error Rate');
 set(gca, 'XTickLabel', k(v>cutoff), 'XTick', 1:numel(k(v>cutoff)));
@@ -337,7 +337,7 @@ fieldOnly.fea = fieldOnly.fea(:,idx);
 
 nfieldImages = numel(fieldOnly.gnd(:,1));
 nspecies = 20;
-nper = 1000;
+nper = 500;
 missedSpecies = containers.Map();
 accuracy = zeros(1, nspecies);
 for i = 1:nper:nfieldImages
@@ -389,10 +389,10 @@ hold on
 ideal = [72 82 87 91 93 94.5 95.5 96 96.6 96.9 97.4 97.8 98.2 98.4 98.6 98.7 98.8 98.9 99 99.1];
 plot(ideal);
 
-title('Accuracy vs. Number of Nearest Species Considered');
-xlabel('Number of nearest species considered');
+title('Accuracy vs. Number of Top-Scoring Species Considered');
+xlabel('Number of top-scoring species considered');
 ylabel('Accuracy (percentage)');
-legend('Cafaro', 'Kumar et. al');
+legend('Multiclass SVM (Cafaro)', 'Nearest Neighbor (Kumar et. al)');
 
 errorRates = containers.Map();
 species = missedSpecies.keys;
@@ -408,10 +408,10 @@ v = errorRates.values;
 v = [v{:}];
 [v,i] = sort(v, 'descend');
 k = k(i);
-cutoff = 1;
+cutoff = 1.5;
 bar(1:numel(v(v>cutoff)), v(v>cutoff));
 title('Species with Highest Error Rate');
-set(gca, 'XTickLabel', k(v>cutoff), 'XTick', 1:numel(k(v>cutoff)));
+set(gca, 'XTickLabel', strrep(k(v>cutoff), '_', ' '), 'XTick', 1:numel(k(v>cutoff)));
 set(gca, 'XTickLabelRotation', 60);
 xlabel('Species');
 ylabel('Error rate (percentage)');
